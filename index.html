@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            padding: 20px;
+            max-width: 800px;   
+            margin: 0 auto;
+        }
+        
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            height: auto;
+            transition: all 0.3s ease;
+        }
+        
+        #login-screen, #start-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 20px;
+        }
+        
+        #quiz-screen, #result-screen {
+            display: none;
+        }
+        
+        h1 {
+            color: #3a4a6d;
+            margin-bottom: 20px;
+        }
+        
+        p {
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+        
+        input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 80%;
+        }
+        
+        .error {
+            color: red;
+            font-size: 14px;
+        }
+
+        .progress-container {
+            width: 100%;
+            background-color: #f1f1f1;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .progress-bar {
+            height: 10px;
+            background-color: #a5d6a7;
+            border-radius: 5px;
+            width: 100%;
+            transition: width 0.5s ease;
+        }
+        
+        .timer-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+        
+        .timer {
+            font-size: 18px;
+            font-weight: bold;
+            color: #3a4a6d;
+        }
+        
+        .question-number {
+            color: #666;
+        }
+        
+        .question {
+            font-size: 20px;
+            margin-bottom: 30px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .options {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .option {
+            background-color: #f1f1f1;
+            padding: 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 5px solid transparent;
+        }
+        
+        .option:hover {
+            background-color: #e6e6e6;
+            border-left: 5px solid #a5d6a7;
+        }
+        
+        .option.selected {
+            background-color: #e8f5e9;
+            border-left: 5px solid #81c784;
+        }
+        
+        .next-btn {
+            float: right;
+        }
+        
+        .result-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+        
+        .correct {
+            background-color: #e8f5e9;
+            border-left: 5px solid #81c784;
+            color: #33691e;
+        }
+        
+        .incorrect {
+            background-color: #f8d7da;
+            border-left: 5px solid #dc3545;
+            color: #721c24;
+        }
+        
+        .score {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .restart-btn {
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="login-screen">
+        <h1>Login</h1>
+        <input type="email" id="email" placeholder="Email" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <div class="error" id="error-message"></div>
+        <button id="login-btn">Login</button>
+    </div>
+    
+    <div class="container" id="start-screen" style="display: none;">
+        <h1>Quiz Game</h1>
+        <p>Test your knowledge with this 30-question quiz. You'll have 1 minute to answer each question.</p>
+        <button id="start-btn">Start Quiz</button>
+    </div>
+    
+    <div class="container" id="quiz-screen">
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        
+        <div class="timer-container">
+            <div class="question-number" id="question-number">Question 1/30</div>
+            <div class="timer" id="timer">01:00</div>
+        </div>
+        
+        <div class="question" id="question"></div>
+        <div class="options" id="options"></div>
+        
+        <button class="next-btn" id="next-btn">Next</button>
+    </div>
+    
+    <div class="container" id="result-screen">
+        <h1>Hasil Quiz</h1>
+        <div class="score" id="score"></div>
+        <div id="results"></div>
+        <button class="restart-btn" id="restart-btn">Play Again</button>
+    </div>
+    
+    <script>
+        // Enhanced user database with password hashing
+        let usersDatabase = JSON.parse(localStorage.getItem('userCredentials')) || [];
+        
+        function saveCredentials(email, password) {
+            const hashedPassword = 'hashed_' + password;
+            usersDatabase.push({ email, password: hashedPassword });
+            localStorage.setItem('userCredentials', JSON.stringify(usersDatabase));
+            return hashedPassword;
+        }
+
+        // Demo quiz questions
+       const questions = [
+            {
+                question: "Apa ibukota Indonesia?",
+                options: ["Jakarta", "Bandung", "Surabaya", "Medan"],
+                answer: 0
+            },
+            {
+                question: "Siapa presiden pertama Indonesia?",
+                options: ["Soeharto", "Joko Widodo", "Soekarno", "BJ Habibie"],
+                answer: 2
+            },
+            {
+                question: "Berapa jumlah provinsi di Indonesia?",
+                options: ["34", "33", "32", "31"],
+                answer: 0
+            },
+            {
+                question: "Apa nama gunung tertinggi di Indonesia?",
+                options: ["Gunung Rinjani", "Gunung Kerinci", "Gunung Semeru", "Gunung Jaya Wijaya"],
+                answer: 3
+            },
+            {
+                question: "Bahasa resmi Indonesia adalah?",
+                options: ["Bahasa Jawa", "Bahasa Indonesia", "Bahasa Sunda", "Bahasa Inggris"],
+                answer: 1
+            },
+            {
+                question: "Tanggal berapa Indonesia merdeka?",
+                options: ["17 Agustus 1950", "17 Agustus 1946", "17 Agustus 1945", "17 Agustus 1944"],
+                answer: 2
+            },
+            {
+                question: "Apa lambang negara Indonesia?",
+                options: ["Burung Garuda", "Burung Elang", "Burung Merak", "Burung Cenderawasih"],
+                answer: 0
+            },
+            {
+                question: "Berapa jumlah pulau di Indonesia?",
+                options: ["Lebih dari 17.000", "Lebih dari 10.000", "Lebih dari 5.000", "Lebih dari 20.000"],
+                answer: 0
+            },
+            {
+                question: "Apa mata uang resmi Indonesia?",
+                options: ["Dollar", "Euro", "Ringgit", "Rupiah"],
+                answer: 3
+            },
+            {
+                question: "Tahun berapa reformasi di Indonesia dimulai?",
+                options: ["1996", "1997", "1998", "1999"],
+                answer: 2
+            },
+            {
+                question: "Apa nama pulau terbesar di Indonesia?",
+                options: ["Sumatra", "Kalimantan", "Sulawesi", "Jawa"],
+                answer: 1
+            },
+            {
+                question: "Suku apa yang dominan di Bali?",
+                options: ["Suku Batak", "Suku Dayak", "Suku Bali", "Suku Minang"],
+                answer: 2
+            },
+            {
+                question: "Apa nama lagu kebangsaan Indonesia?",
+                options: ["Indonesia Raya", "Garuda Pancasila", "Bagimu Negeri", "Hari Merdeka"],
+                answer: 0
+            },
+            {
+                question: "Berapa lama waktu yang dibutuhkan untuk satu kali pemilihan presiden?",
+                options: ["4 tahun", "5 tahun", "6 tahun", "7 tahun"],
+                answer: 1
+            },
+            {
+                question: "Apa flora identitas Indonesia?",
+                options: ["Anggrek Bulan", "Rafflesia Arnoldii", "Padma Raksasa", "Bunga Bangkai"],
+                answer: 0
+            },
+            {
+                question: "Apa fauna identitas Indonesia?",
+                options: ["Harimau Sumatra", "Orangutan", "Komodo", "Elang Jawa"],
+                answer: 3
+            },
+            {
+                question: "Dimana Candi Borobudur berada?",
+                options: ["Jawa Tengah", "Jawa Timur", "Yogyakarta", "Jawa Barat"],
+                answer: 0
+            },
+            {
+                question: "Apa nama danau terbesar di Indonesia?",
+                options: ["Danau Toba", "Danau Matano", "Danau Singkarak", "Danau Poso"],
+                answer: 0
+            },
+            {
+                question: "Apa nama bandara internasional di Bali?",
+                options: ["Soekarno-Hatta", "Juanda", "Ngurah Rai", "Husein Sastranegara"],
+                answer: 2
+            },
+            {
+                question: "Apa nama selat yang memisahkan Jawa dan Sumatra?",
+                options: ["Selat Sunda", "Selat Malaka", "Selat Bali", "Selat Karimata"],
+                answer: 0
+            },
+            {
+                question: "Berapa jumlah kepulauan di Indonesia?",
+                options: ["Tiga", "Empat", "Lima", "Enam"],
+                answer: 2
+            },
+            {
+                question: "Apa nama museum terkenal di Jakarta?",
+                options: ["Museum Nasional", "Museum Fatahillah", "Museum Bank Indonesia", "Semua benar"],
+                answer: 3
+            },
+            {
+                question: "Apa nama tarian tradisional Bali?",
+                options: ["Tari Kecak", "Tari Saman", "Tari Piring", "Tari Tor-Tor"],
+                answer: 0
+            },
+            {
+                question: "Apa nama alat musik tradisional Jawa?",
+                options: ["Angklung", "Gamelan", "Kolintang", "Sasando"],
+                answer: 1
+            },
+            {
+                question: "Apa nama taman nasional pertama di Indonesia?",
+                options: ["Taman Nasional Komodo", "Taman Nasional Ujung Kulon", "Taman Nasional Bromo Tengger Semeru", "Taman Nasional Gunung Leuser"],
+                answer: 1
+            },
+            {
+                question: "Apa nama sungai terpanjang di Indonesia?",
+                options: ["Sungai Kapuas", "Sungai Mahakam", "Sungai Barito", "Sungai Musi"],
+                answer: 0
+            },
+            {
+                question: "Apa julukan kota Bandung?",
+                options: ["Kota Hujan", "Kota Kembang", "Kota Gudeg", "Kota Pahlawan"],
+                answer: 1
+            },
+            {
+                question: "Apa nama universitas tertua di Indonesia?",
+                options: ["UI", "ITB", "UGM", "UNPAD"],
+                answer: 0
+            },
+            {
+                question: "Apa nama komplek candi Hindu terbesar di Indonesia?",
+                options: ["Candi Borobudur", "Candi Prambanan", "Candi Mendut", "Candi Sewu"],
+                answer: 1
+            },
+            {
+                question: "Apa nama gunung berapi aktif di Jawa Timur?",
+                options: ["Gunung Merapi", "Gunung Bromo", "Gunung Rinjani", "Gunung Agung"],
+                answer: 1
+            }
+        ];
+        // Quiz variables
+        let currentQuestion = 0;
+        let score = 0;
+        let timer;
+        let timeLeft = 60;
+        let selectedOption = null;
+        let userAnswers = [];
+        
+        // DOM elements
+        const loginScreen = document.getElementById('login-screen');
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const loginBtn = document.getElementById('login-btn');
+        const startBtn = document.getElementById('start-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const questionEl = document.getElementById('question');
+        const optionsEl = document.getElementById('options');
+        const timerEl = document.getElementById('timer');
+        const progressBar = document.getElementById('progress-bar');
+        const questionNumberEl = document.getElementById('question-number');
+        const scoreEl = document.getElementById('score');
+        const resultsEl = document.getElementById('results');
+        const errorMessage = document.getElementById('error-message');
+        
+        // Event listeners
+        loginBtn.addEventListener('click', login);
+        startBtn.addEventListener('click', startQuiz);
+        nextBtn.addEventListener('click', nextQuestion);
+        restartBtn.addEventListener('click', restartQuiz);
+        
+        // Enhanced login function
+        function login() {
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value.trim();
+            errorMessage.textContent = "";
+            
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                errorMessage.textContent = "Format email tidak valid!";
+                return;
+            }
+            
+            if (password.length < 6) {
+                errorMessage.textContent = "Password minimal 6 karakter!";
+                return;
+            }
+            
+            const user = usersDatabase.find(u => u.email === email);
+            
+            if (!user) {
+                const hashedPassword = saveCredentials(email, password);
+                localStorage.setItem('currentUser', JSON.stringify({email}));
+                loginScreen.style.display = 'none';
+                startScreen.style.display = 'flex';
+                alert(`Akun baru berhasil dibuat untuk ${email}`);
+                return;
+            }
+            
+            if (user.password === 'hashed_' + password) {
+                localStorage.setItem('currentUser', JSON.stringify({email}));
+                loginScreen.style.display = 'none';
+                startScreen.style.display = 'flex';
+                document.getElementById('email').value = '';
+                document.getElementById('password').value = '';
+            } else {
+                errorMessage.textContent = "Password salah!";
+            }
+        }
+        
+        // Start quiz function
+        function startQuiz() {
+            startScreen.style.display = 'none';
+            quizScreen.style.display = 'block';
+            loadQuestion();
+            startTimer();
+        }
+        
+        // Load question function
+        function loadQuestion() {
+            resetState();
+            const question = questions[currentQuestion];
+            questionEl.textContent = question.question;
+            questionNumberEl.textContent = `Question ${currentQuestion + 1}/${questions.length}`;
+            
+            question.options.forEach((option, index) => {
+                const button = document.createElement('div');
+                button.classList.add('option');
+                button.textContent = option;
+                button.addEventListener('click', () => selectOption(index));
+                optionsEl.appendChild(button);
+            });
+            
+            updateProgressBar();
+        }
+        
+        // Select option function
+        function selectOption(index) {
+            selectedOption = index;
+            const options = document.querySelectorAll('.option');
+            options.forEach(option => option.classList.remove('selected'));
+            options[index].classList.add('selected');
+        }
+        
+        // Reset state function
+        function resetState() {
+            selectedOption = null;
+            while (optionsEl.firstChild) {
+                optionsEl.removeChild(optionsEl.firstChild);
+            }
+        }
+        
+        // Start timer function
+        function startTimer() {
+            clearInterval(timer);
+            timeLeft = 60;
+            updateTimerDisplay();
+            
+            timer = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    nextQuestion();
+                }
+            }, 1000);
+        }
+        
+        // Update timer display function
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (timeLeft <= 10) {
+                timerEl.style.color = '#dc3545';
+            } else {
+                timerEl.style.color = '#3a4a6d';
+            }
+        }
+        
+        // Update progress bar function
+        function updateProgressBar() {
+            const progress = ((currentQuestion) / questions.length) * 100;
+            progressBar.style.width = `${progress}%`;
+        }
+        
+        // Next question function
+        function nextQuestion() {
+            clearInterval(timer);
+            
+            const isCorrect = selectedOption === questions[currentQuestion].answer;
+            userAnswers.push({
+                question: questions[currentQuestion].question,
+                userAnswer: questions[currentQuestion].options[selectedOption],
+                correctAnswer: questions[currentQuestion].options[questions[currentQuestion].answer],
+                isCorrect: isCorrect
+            });
+            
+            if (isCorrect) {
+                score++;
+            }
+            
+            currentQuestion++;
+            
+            if (currentQuestion < questions.length) {
+                loadQuestion();
+                startTimer();
+            } else {
+                showResults();
+            }
+        }
+        
+        // Show results function
+        function showResults() {
+            quizScreen.style.display = 'none';
+            resultScreen.style.display = 'block';
+            
+            scoreEl.textContent = `Skor Anda: ${score} dari ${questions.length}`;
+            
+            userAnswers.forEach((answer, index) => {
+                const resultItem = document.createElement('div');
+                resultItem.classList.add('result-item');
+                resultItem.classList.add(answer.isCorrect ? 'correct' : 'incorrect');
+                
+                resultItem.innerHTML = `
+                    <p><strong>Pertanyaan ${index + 1}:</strong> ${answer.question}</p>
+                    <p><strong>Jawaban Anda:</strong> <span class="${answer.isCorrect ? 'correct-text' : 'incorrect-text'}">${answer.userAnswer || '(Tidak dijawab)'}</span></p>
+                    ${!answer.isCorrect && answer.userAnswer ? `<p><strong>Jawaban Benar:</strong> ${answer.correctAnswer}</p>` : ''}
+                `;
+                
+                resultsEl.appendChild(resultItem);
+            });
+        }
+        
+        // Restart quiz function
+        function restartQuiz() {
+            currentQuestion = 0;
+            score = 0;
+            userAnswers = [];
+            resultsEl.innerHTML = '';
+            resultScreen.style.display = 'none';
+            startScreen.style.display = 'flex';
+        }
+    </script>
+</body>
+</html>
